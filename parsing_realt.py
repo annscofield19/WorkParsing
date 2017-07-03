@@ -1,11 +1,18 @@
-﻿from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 import requests
 import pyexcel as pe
 import xlwt
 import openpyxl
+import os
 
-baseurl = 'https://realt.by/sale/cottages/?page=1'
-field_dict = {'Канализация': 'Sewerage', 'Электричество': 'Electricity', }
+baseurl = 'https://realt.by/sale/shops/?page=1'
+field_dict = {'Канализация': 'Sewerage', 'Электричество': 'Electricity', 'Дата обновления': 'ObjectData', 'Телефоны': 'Contacts',
+              'E-mail': 'E-mail', 'Контактное лицо': 'ContactName', 'Область': 'Область', 'Район области': 'Район области', 'Населенный пункт': 'Населенный пункт', 'Направление': 'Direction', 'Адрес': 'Адрес',
+             'Вид объекта': 'ObjectType','Площадь участка': 'ZUArea', 'Площадь': 'Area', 'Этаж / этажность': 'Floor', 'Высота потолков': 'Hihgt', 'Материал cтен': 'WallMaterial',
+             'Год постройки': 'BuildYear', 'Состояние здания / помещения': 'Состояние', 'Кол-во помещений': 'RoomNumber', 'Кол-во телефонов': 'PhoneAmount', 'Наличие оборудования': 'Наличие оборудования',
+             'Естественное освещение': 'NaturalLight', 'Отопление': 'Heat', 'Электроснабжение': 'Электроснабжение', 'Подведенная мощность': 'Power', 'Газоснабжение': 'Gas', 'Вода': 'Water',
+             'Сан.узел': 'Toilet', 'Юридический адрес': 'LegalAddress',
+             'Телефон': 'Phone','Дополнительно': 'Additionally', 'Примечания': 'Примечания','Условия продажи': 'SaleConditions', 'Вид владения': 'Вид владения', 'Ориентировочная стоимость эквивалентна': 'Price'}
 options = list(field_dict.keys())
 fields = list(field_dict.values())
 my_fields = ['ID_object', 'Xcoord', 'Ycoord']
@@ -23,17 +30,37 @@ def get_html(url):
 
 def parse(html):
     soup = BeautifulSoup(html, "html.parser")
+    # look for hrefs in titles
     table = soup.find_all('div', {'class': 'bd-item'})
     projects = []
+    # проходимся по каждому объявлению
     for row in table:
+        i=1 # for name of photo
+        # get hrefs of all pages
         href_name = row.find('a')
         obj_url = href_name.get("href")
-        # print(obj_url)
         html_obj = get_html(obj_url)
+
         soup1 = BeautifulSoup(html_obj, "html.parser")
         table = soup1.find_all('tr', {'class': 'table-row'})
         project = {}
         project['ID_object'] = int(obj_url.split('object/')[1][:-1])
+
+        # # download photos
+        # photos = soup1.find_all('div', {'class': 'photo-item'})
+        # print(photos)
+        # if photos:
+        #     for photo in photos:
+        #         print(photo)
+        #         lnk = photo.find('img').get('src')
+        #         print(lnk)
+        #         nametemp = "{}_{}.jpeg".format(project['ID_object'], i)
+        #         print(nametemp)
+        #         i+=1
+        #         with open(nametemp, "wb") as f:
+        #             f.write(requests.get(lnk).content)
+
+
         for i in table:
             if 'Координаты для онлайн карт' in i.text:
                 coordinates = i.text.split('Координаты для онлайн карт')[1].strip()
@@ -46,7 +73,7 @@ def parse(html):
         projects.append(project)
     print(projects)
 
-    # Write into NEW EXCEL
+    # Write into NEW EXCEL. NOW NOT USED
 
     # wb = xlwt.Workbook()
     # ws = wb.add_sheet("Sheet")
@@ -64,13 +91,14 @@ def parse(html):
     #             line += 1
     # wb.save("D:/TESTYYYY.xls")
 
-    # WRITE TO EXISTING EXCEL
+    # !!!! NOW USE - WRITE TO EXISTING EXCEL
 
     file = "D:/TESTYYYY1.xlsx"
     wb = openpyxl.load_workbook(filename=file)
     # Seleciono la Hoja
     ws = wb.get_sheet_by_name('Sheet')
     row_num = ws.max_row
+    print(row_num)
     for project in projects:
         row_num += 1
         for i in range(1, 70):
