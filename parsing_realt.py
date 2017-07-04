@@ -5,6 +5,8 @@ import xlwt
 import openpyxl
 import os
 
+
+
 baseurl = 'https://realt.by/sale/shops/?page=1'
 field_dict = {'Канализация': 'Sewerage', 'Электричество': 'Electricity', 'Дата обновления': 'ObjectData', 'Телефоны': 'Contacts',
               'E-mail': 'E-mail', 'Контактное лицо': 'ContactName', 'Область': 'Область', 'Район области': 'Район области', 'Населенный пункт': 'Населенный пункт', 'Направление': 'Direction', 'Адрес': 'Адрес',
@@ -29,6 +31,7 @@ def get_html(url):
         return res.content
 
 def parse(html):
+
     soup = BeautifulSoup(html, "html.parser")
     # look for hrefs in titles
     table = soup.find_all('div', {'class': 'bd-item'})
@@ -44,7 +47,12 @@ def parse(html):
         soup1 = BeautifulSoup(html_obj, "html.parser")
         table = soup1.find_all('tr', {'class': 'table-row'})
         project = {}
-        project['ID_object'] = int(obj_url.split('object/')[1][:-1])
+        id_object_name = int(obj_url.split('object/')[1][:-1])
+        project['ID_object'] = id_object_name
+        # write web page to html file
+        name_html ='{}.html'.format(id_object_name)
+        with open(name_html, 'wb') as file:
+            file.write(html_obj)
 
         # # download photos
         # photos = soup1.find_all('div', {'class': 'photo-item'})
