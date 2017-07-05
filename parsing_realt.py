@@ -4,22 +4,19 @@ import pyexcel as pe
 import xlwt
 import openpyxl
 import os
+import json
 
 
 
-baseurl = 'https://realt.by/sale/shops/?page=1'
-field_dict = {'Канализация': 'Sewerage', 'Электричество': 'Electricity', 'Дата обновления': 'ObjectData', 'Телефоны': 'Contacts',
-              'E-mail': 'E-mail', 'Контактное лицо': 'ContactName', 'Область': 'Область', 'Район области': 'Район области', 'Населенный пункт': 'Населенный пункт', 'Направление': 'Direction', 'Адрес': 'Адрес',
-             'Вид объекта': 'ObjectType','Площадь участка': 'ZUArea', 'Площадь': 'Area', 'Этаж / этажность': 'Floor', 'Высота потолков': 'Hihgt', 'Материал cтен': 'WallMaterial',
-             'Год постройки': 'BuildYear', 'Состояние здания / помещения': 'Состояние', 'Кол-во помещений': 'RoomNumber', 'Кол-во телефонов': 'PhoneAmount', 'Наличие оборудования': 'Наличие оборудования',
-             'Естественное освещение': 'NaturalLight', 'Отопление': 'Heat', 'Электроснабжение': 'Электроснабжение', 'Подведенная мощность': 'Power', 'Газоснабжение': 'Gas', 'Вода': 'Water',
-             'Сан.узел': 'Toilet', 'Юридический адрес': 'LegalAddress',
-             'Телефон': 'Phone','Дополнительно': 'Additionally', 'Примечания': 'Примечания','Условия продажи': 'SaleConditions', 'Вид владения': 'Вид владения', 'Ориентировочная стоимость эквивалентна': 'Price'}
-options = list(field_dict.keys())
-fields = list(field_dict.values())
-my_fields = ['ID_object', 'Xcoord', 'Ycoord']
-fields.extend(my_fields)
-print(fields)
+baseurl = 'https://realt.by/sale/shops/?page=1' # Базовый URL  - https://realt.by/sale/shops/
+
+with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+    Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
+excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
+realt_fields_list = list(Realt_Excel_dict.keys())
+
+with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+    Excel_options_dict = json.load(jf)
 
 def get_html(url):
     try:
@@ -48,11 +45,11 @@ def parse(html):
         table = soup1.find_all('tr', {'class': 'table-row'})
         project = {}
         id_object_name = int(obj_url.split('object/')[1][:-1])
-        project['ID_object'] = id_object_name
-        # write web page to html file
-        name_html ='{}.html'.format(id_object_name)
-        with open(name_html, 'wb') as file:
-            file.write(html_obj)
+        project['№ Объявления'] = id_object_name
+        # # write web page to html file
+        # name_html ='{}.html'.format(id_object_name)
+        # with open(name_html, 'wb') as file:
+        #     file.write(html_obj)
 
         # # download photos
         # photos = soup1.find_all('div', {'class': 'photo-item'})
@@ -70,16 +67,56 @@ def parse(html):
 
 
         for i in table:
-            if 'Координаты для онлайн карт' in i.text:
-                coordinates = i.text.split('Координаты для онлайн карт')[1].strip()
-                project['Xcoord'] = coordinates.split(' ')[0]
-                project['Ycoord'] = coordinates.split(' ')[1]
-            for option in options:
+            # Для объявлений, где есть координаты - для Общественно - деловой зоны их нет
+            # if 'Координаты для онлайн карт' in i.text:
+            #     coordinates = i.text.split('Координаты для онлайн карт')[1].strip()
+            #     project['Xcoord'] = coordinates.split(' ')[0]
+            #     project['Ycoord'] = coordinates.split(' ')[1]
+            for option in realt_fields_list:
                 if option in i.text:
-                    project[field_dict[option]] = i.text.split(option)[1].strip()
-        # print(project)
+                    print(option)
+                    realt_answer = i.text.split(option)[1].strip()
+                    if option == "Вид объекта":
+                        # if "(" in realt_answer:
+                        #     realt_answer = realt_answer.split(" (")[0]
+                        # project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                        print('Вид объекта не работает')
+                    elif option == "НДС":
+                        realt_answer = i.text.split(option)[2].strip() # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options
+                        project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+
+                    elif option == "Телефоны":
+                        if 'Пожалуйста, скажите что Вы нашли это объявление на сайте Realt.by' in i.text:
+                            project[Realt_Excel_dict[option]] = realt_answer.split('Пожалуйста, скажите что Вы нашли это объявление на сайте Realt.by')[1].strip()
+                        else:
+                            project[Realt_Excel_dict[option]] = realt_answer
+                    elif option == "Вода":
+                        project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                        project[Realt_Excel_dict['Вода2']] = Excel_options_dict[Realt_Excel_dict['Вода2']][realt_answer]
+                    elif option == "Адрес": # Никольская ул., 66-2
+                        if "." in realt_answer:
+                            try:
+                                a = realt_answer.split(".")[0] # Никольская ул
+                                project[Realt_Excel_dict[option]] = a.split(' ')[1]
+                                project[Realt_Excel_dict['Адрес2']] = a.split(' ')[0]
+                            except IndexError:
+                                print('No street')
+                        if "," in realt_answer:
+                            a = realt_answer.split(',')[1].strip()# 66-2
+                            if "-" in a:
+                                project[Realt_Excel_dict['Адрес3']] = a.split('-')[0]
+                            else:
+                                project[Realt_Excel_dict['Адрес3']] = a
+                        if "-" in realt_answer:
+                            project[Realt_Excel_dict['Адрес4']] = realt_answer.split('-')[1]
+
+                    elif Realt_Excel_dict[option] in Excel_options_dict:
+                        project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                    else:
+                        project[Realt_Excel_dict[option]] = realt_answer
         projects.append(project)
-    print(projects)
+        print(project)
+    # print(projects)
 
     # Write into NEW EXCEL. NOW NOT USED
 
@@ -101,7 +138,7 @@ def parse(html):
 
     # !!!! NOW USE - WRITE TO EXISTING EXCEL
 
-    file = "D:/TESTYYYY1.xlsx"
+    file = "MyExcel.xlsx"
     wb = openpyxl.load_workbook(filename=file)
     # Seleciono la Hoja
     ws = wb.get_sheet_by_name('Sheet')
@@ -110,8 +147,8 @@ def parse(html):
     for project in projects:
         row_num += 1
         for i in range(1, 70):
-            for field in fields:
-                if field == ws.cell(row=1, column=i).value and field in project:
+            for field in excel_fields_list:
+                if field == ws.cell(row=3, column=i).value and field in project:
                     ws.cell(row=row_num, column=i).value = project[field]
     wb.save(file)
 
