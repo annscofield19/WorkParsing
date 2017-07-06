@@ -5,7 +5,7 @@ import xlwt
 import openpyxl
 import os
 import json
-# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
 #     Realt_Excel_dict = json.load(jf) #загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
 # print(Realt_Excel_dict.values())
 # excel_fields_list = list(Realt_Excel_dict.values())
@@ -15,13 +15,13 @@ import json
 
 baseurl = 'https://realt.by/sale/shops/?page=1' # Базовый URL  - https://realt.by/sale/shops/
 
-with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
-    Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
-excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
-realt_fields_list = list(Realt_Excel_dict.keys())
-
-with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
-    Excel_options_dict = json.load(jf)
+# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+#     Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
+# excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
+# realt_fields_list = list(Realt_Excel_dict.keys())
+#
+# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Fields_Options.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+#     Excel_options_dict = json.load(jf)
 
 def get_html(url):
     try:
@@ -59,7 +59,8 @@ def parse(html):
                     realt_answer = i.text.split(option)[1].strip()
                     if option == "Ориентировочная стоимость эквивалентна":
                         print(i)
-
-
-html = get_html(baseurl)
-parse(html)
+string = "Строительство нового торгового центра в Заводском районе. Приглашаем партнеров (торговый центр, магазин, торговое помещение, павильон, киоск, кафе, сфера услуг, салон красоты, парикмахерская, медицина, аптека, здание, банк, торговое место)"
+a = string.split(")")[-1]
+print(a)
+# html = get_html(baseurl)
+# parse(html)
