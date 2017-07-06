@@ -46,10 +46,10 @@ def parse(html):
         project = {}
         id_object_name = int(obj_url.split('object/')[1][:-1])
         project['№ Объявления'] = id_object_name
-        # # write web page to html file
-        # name_html ='{}.html'.format(id_object_name)
-        # with open(name_html, 'wb') as file:
-        #     file.write(html_obj)
+        # write web page to html file
+        name_html ='{}.html'.format(id_object_name)
+        with open(name_html, 'wb') as file:
+            file.write(html_obj)
 
         # # download photos
         # photos = soup1.find_all('div', {'class': 'photo-item'})
@@ -138,19 +138,19 @@ def parse(html):
 
     # !!!! NOW USE - WRITE TO EXISTING EXCEL
 
-    file = "MyExcel.xlsx"
-    wb = openpyxl.load_workbook(filename=file)
-    # Seleciono la Hoja
-    ws = wb.get_sheet_by_name('Sheet')
-    row_num = ws.max_row
-    print(row_num)
-    for project in projects:
-        row_num += 1
-        for i in range(1, 70):
-            for field in excel_fields_list:
-                if field == ws.cell(row=3, column=i).value and field in project:
-                    ws.cell(row=row_num, column=i).value = project[field]
-    wb.save(file)
+    # file = "MyExcel.xlsx"
+    # wb = openpyxl.load_workbook(filename=file)
+    # # Seleciono la Hoja
+    # ws = wb.get_sheet_by_name('Sheet')
+    # row_num = ws.max_row
+    # print(row_num)
+    # for project in projects:
+    #     row_num += 1
+    #     for i in range(1, 70):
+    #         for field in excel_fields_list:
+    #             if field == ws.cell(row=3, column=i).value and field in project:
+    #                 ws.cell(row=row_num, column=i).value = project[field]
+    # wb.save(file)
 
 
 html = get_html(baseurl)
