@@ -1,66 +1,30 @@
-from bs4 import BeautifulSoup
-import requests
-import pyexcel as pe
-import xlwt
-import openpyxl
-import os
-import json
-# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
-#     Realt_Excel_dict = json.load(jf) #загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
-# print(Realt_Excel_dict.values())
-# excel_fields_list = list(Realt_Excel_dict.values())
-# for option in excel_fields_list:
-#     print(next((key for key, value in Realt_Excel_dict.items() if value == option), None))
+import requests, json
 
-
-baseurl = 'https://realt.by/sale/shops/?page=1' # Базовый URL  - https://realt.by/sale/shops/
-
-# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Excel.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
-#     Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
-# excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
-# realt_fields_list = list(Realt_Excel_dict.keys())
-#
-# with open('D:/PYTHON/2017/Parsing/WorkParsing/Offices_Realt_Fields_Options.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
-#     Excel_options_dict = json.load(jf)
+baseurl = 'https://realt.by/sale/shops/object/1118514' # Базовый URL  - https://realt.by/sale/shops/
 
 def get_html(url):
     try:
-        res = requests.get(url)
+        res = requests.get(url, headers = headers)
     except requests.ConnectionError:
         return
 
     if res.status_code < 400:
         return res.content
+headers = {
+    'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
+      }
 
-def parse(html):
 
-    soup = BeautifulSoup(html, "html.parser")
-    # look for hrefs in titles
-    table = soup.find_all('div', {'class': 'bd-item'})
-    projects = []
-    # проходимся по каждому объявлению
-    for row in table:
-        i=1 # for name of photo
-        # get hrefs of all pages
-        href_name = row.find('a')
-        obj_url = href_name.get("href")
-        html_obj = get_html(obj_url)
+my_string = '23 460 руб, 260 руб/кв.м 23 460 руб, 260 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.'
 
-        soup1 = BeautifulSoup(html_obj, "html.parser")
-        table = soup1.find_all('tr', {'class': 'table-row'})
-        project = {}
-        id_object_name = int(obj_url.split('object/')[1][:-1])
-        project['№ Объявления'] = id_object_name
-        print(project['№ Объявления'])
+a = my_string.split(', ')[1].split(' ')[0]
 
-        for i in table:
-            for option in realt_fields_list:
-                if option in i.text:
-                    realt_answer = i.text.split(option)[1].strip()
-                    if option == "Ориентировочная стоимость эквивалентна":
-                        print(i)
-string = "Строительство нового торгового центра в Заводском районе. Приглашаем партнеров (торговый центр, магазин, торговое помещение, павильон, киоск, кафе, сфера услуг, салон красоты, парикмахерская, медицина, аптека, здание, банк, торговое место)"
-a = string.split(")")[-1]
-print(a)
-# html = get_html(baseurl)
-# parse(html)
+
+# hanna = requests.get('http://www.nbrb.by/API/ExRates/Rates/145')
+# print(hanna.content)
+
+n = b'{"Cur_ID":145,"Date":"2017-07-07T00:00:00","Cur_Abbreviation":"USD","Cur_Scale":1,"Cur_Name":"\xd0\x94\xd0\xbe\xd0\xbb\xd0\xbb\xd0\xb0\xd1\x80 \xd0\xa1\xd0\xa8\xd0\x90","Cur_OfficialRate":1.9714}'
+# print(str(n).split('"Cur_OfficialRate":')[1])
+
+data = json.loads(n)
+print(data['Cur_OfficialRate'])

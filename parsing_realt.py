@@ -9,25 +9,31 @@ from datetime import datetime
 
 
 
-baseurl = 'https://realt.by/sale/shops/?page=2' # Базовый URL  - https://realt.by/sale/shops/
 
-with open('D:/PYTHON/NCA 03072017/Work/Offices_Realt_Excel.json', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+
+baseurl = 'https://realt.by/sale/shops/?page=3' # Базовый URL  - https://realt.by/sale/shops/
+
+with open('D:/PYTHON/2017/Parsing/WorkParsingNEW/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
 excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
 realt_fields_list = list(Realt_Excel_dict.keys())
 
-with open('D:/PYTHON/NCA 03072017/Work/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('D:/PYTHON/2017/Parsing/WorkParsingNEW/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Excel_options_dict = json.load(jf)
     print(Excel_options_dict)
 
 def get_html(url):
     try:
-        res = requests.get(url)
+        res = requests.get(url, headers = headers)
     except requests.ConnectionError:
         return
 
     if res.status_code < 400:
         return res.content
+
+headers = {
+    'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
+      }
 
 def parse(html):
 
@@ -52,44 +58,48 @@ def parse(html):
         project['№ Объявления'] = id_object_name
         project['Дата актуальности предложения'] = datetime.strftime(datetime.now(), "%d.%m.%Y")
         project['Источник'] = "Realt.by"
-        # price_table = soup1.find('span', {'class': 'price-byr'})
-        # print(price_table)
-        # for pr in price_table:
-        #     print(id_object_name)
-        #     print(pr)
 
-        # # write web page to html file
-        # name_html ='{}.html'.format(id_object_name)
-        # with open(name_html, 'wb') as file:
-        #     file.write(html_obj)
 
-        # # download photos
-        # photos = soup1.find_all('div', {'class': 'photo-item'})
-        # print(photos)
-        # if photos:
-        #     for photo in photos:
-        #         print(photo)
-        #         lnk = photo.find('img').get('src')
-        #         print(lnk)
-        #         nametemp = "{}_{}.jpeg".format(project['ID_object'], i)
-        #         print(nametemp)
-        #         i+=1
-        #         with open(nametemp, "wb") as f:
-        #             f.write(requests.get(lnk).content)
+        # write web page to html file
+        name_html ='{}.html'.format(id_object_name)
+        with open(name_html, 'wb') as file:
+            file.write(html_obj)
+
+        '''
+        # download photos
+        photos = soup1.find_all('div', {'class': 'photo-item'})
+        print(photos)
+        if photos:
+            for photo in photos:
+                print(photo)
+                lnk = photo.find('img').get('src')
+                print(lnk)
+                nametemp = "{}_{}.jpeg".format(project['ID_object'], i)
+                print(nametemp)
+                i+=Offices_Realt_Excel
+                with open(nametemp, "wb") as f:
+                    f.write(requests.get(lnk).content)
+        '''
 
 
         for i in table:
             # Для объявлений, где есть координаты - для Общественно - деловой зоны их нет
             # if 'Координаты для онлайн карт' in i.text:
-            #     coordinates = i.text.split('Координаты для онлайн карт')[1].strip()
+            #     coordinates = i.text.split('Координаты для онлайн карт')[Offices_Realt_Excel].strip()
             #     project['Xcoord'] = coordinates.split(' ')[0]
-            #     project['Ycoord'] = coordinates.split(' ')[1]
+            #     project['Ycoord'] = coordinates.split(' ')[Offices_Realt_Excel]
             for option in realt_fields_list:
                 if option in i.text:
                     print(option)
                     realt_answer = i.text.split(option)[1].strip()
                     if option == "Площадь":
                         project[Realt_Excel_dict[option]] = realt_answer.split('м²')[0].strip()
+                    elif option == "Ориентировочная стоимость эквивалентна":
+                        if "," in realt_answer:
+                            realt_answer = realt_answer.split(', ')[1].split(' ')[0]
+                            project[Realt_Excel_dict[option]] = realt_answer
+                        else:
+                            project[Realt_Excel_dict[option]] = realt_answer
                     elif option == "Вид объекта":
                         if "(" in realt_answer:
                             osnov_vid = realt_answer.split(" (")[0].strip().lower()
@@ -128,7 +138,7 @@ def parse(html):
                     elif option == "Вода":
                         project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
                         project[Realt_Excel_dict['Вода2']] = Excel_options_dict[Realt_Excel_dict['Вода2']][realt_answer]
-                    elif option == "Адрес": # Никольская ул., 66-2
+                    elif option == "Адрес": # Никольская ул., 66-Offices_Realt_Fields_Options
                         if "." in realt_answer:
                             try:
                                 a = realt_answer.split(".")[0]  # Никольская ул
@@ -145,7 +155,7 @@ def parse(html):
                                 project[Realt_Excel_dict[option]] = realt_elem_name
                                 project[Realt_Excel_dict['Адрес2']] = realt_street_name
                         if "," in realt_answer:
-                            a = realt_answer.split(',')[1].strip()# 66-2
+                            a = realt_answer.split(',')[1].strip()# 66-Offices_Realt_Fields_Options
                             if "-" in a:
                                 project[Realt_Excel_dict['Адрес3']] = a.split('-')[0]
                             else:
@@ -170,14 +180,14 @@ def parse(html):
     # line = 0
     # for option in options:
     #     ws.write(row, line, option)
-    #     line += 1
+    #     line += Offices_Realt_Excel
     # for project in projects:
     #     line = 0
-    #     row += 1
+    #     row += Offices_Realt_Excel
     #     for option in options:
     #         if option in project:
     #             ws.write(row, line, project[option])
-    #             line += 1
+    #             line += Offices_Realt_Excel
     # wb.save("D:/TESTYYYY.xls")
 
     # !!!! NOW USE - WRITE TO EXISTING EXCEL
@@ -204,11 +214,11 @@ parse(html)
 
 # soup = BeautifulSoup(html, "html.parser")
 # pages = soup.find('div', {'class': 'uni-paging'})
-# last_page = pages.text.split("... ")[1].strip()
+# last_page = pages.text.split("... ")[Offices_Realt_Excel].strip()
 # print(last_page)
 #
-# last_url = int(last_page) - 1
-# for i in range(1, last_url):
+# last_url = int(last_page) - Offices_Realt_Excel
+# for i in range(Offices_Realt_Excel, last_url):
 #     url = "{}?page={}".format(baseurl, i)
 #     html = get_html(url)
 #     parse(html)
