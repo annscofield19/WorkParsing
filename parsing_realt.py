@@ -6,21 +6,21 @@ import openpyxl
 import os
 import json
 from datetime import datetime
+import time
 
 
+headers = {
+    'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
+      }
+baseurl = 'https://realt.by/sale/shops/' # Базовый URL  - https://realt.by/sale/shops/
 
-
-
-baseurl = 'https://realt.by/sale/shops/?page=3' # Базовый URL  - https://realt.by/sale/shops/
-
-with open('D:/PYTHON/2017/Parsing/WorkParsingNEW/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
 excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
 realt_fields_list = list(Realt_Excel_dict.keys())
 
-with open('D:/PYTHON/2017/Parsing/WorkParsingNEW/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing//Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Excel_options_dict = json.load(jf)
-    print(Excel_options_dict)
 
 def get_html(url):
     try:
@@ -31,13 +31,26 @@ def get_html(url):
     if res.status_code < 400:
         return res.content
 
-headers = {
-    'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
-      }
+def get_dol_kurs(url = 'http://www.nbrb.by/API/ExRates/Rates/145'):
+    byte_kurs = get_html(url)
+    dict_kurs = json.loads(byte_kurs)
+    kurs = dict_kurs['Cur_OfficialRate']
+    return kurs
+
+def del_space(string):
+    string = str(string)
+    if ' 'in string:
+        my_list = string.split(' ')
+        new_string = '{}{}'.format(my_list[0], my_list[1])
+        string = new_string
+        return string
+    # elif u'\xa' in string:
+    #     my_list = string.split(' ')
+    #     new_string = '{}{}'.format(my_list[0], my_list[1])
+    #     string = new_string
+    #     return string
 
 def parse(html):
-
-    today_date = datetime.date
 
     soup = BeautifulSoup(html, "html.parser")
     # look for hrefs in titles
@@ -59,12 +72,12 @@ def parse(html):
         project['Дата актуальности предложения'] = datetime.strftime(datetime.now(), "%d.%m.%Y")
         project['Источник'] = "Realt.by"
 
-
+        '''
         # write web page to html file
         name_html ='{}.html'.format(id_object_name)
         with open(name_html, 'wb') as file:
             file.write(html_obj)
-
+        '''
         '''
         # download photos
         photos = soup1.find_all('div', {'class': 'photo-item'})
@@ -95,11 +108,25 @@ def parse(html):
                     if option == "Площадь":
                         project[Realt_Excel_dict[option]] = realt_answer.split('м²')[0].strip()
                     elif option == "Ориентировочная стоимость эквивалентна":
+                        print(realt_answer)
+                        # realt_answer = 1 677 руб/кв.м 1 677 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.
                         if "," in realt_answer:
-                            realt_answer = realt_answer.split(', ')[1].split(' ')[0]
+                            realt_answer = realt_answer.split(', ')[1].split(' ')[0] # '355—395' or '356'
+                            if '—' in realt_answer:
+                                realt_answer = realt_answer.split('—')[0].strip()
+                                del_space(realt_answer)
+                                project[Realt_Excel_dict[option]] = int(int(realt_answer)/get_dol_kurs())
+                            else:
+                                del_space(realt_answer)
+                                project[Realt_Excel_dict[option]] = int(int(realt_answer)/get_dol_kurs())
+                        elif 'договор' in realt_answer:
                             project[Realt_Excel_dict[option]] = realt_answer
                         else:
-                            project[Realt_Excel_dict[option]] = realt_answer
+                            realt_answer = realt_answer.split(' руб')[0].strip()
+                            # del_space(str(realt_answer))
+                            print(realt_answer)
+                            print(int(realt_answer))
+                            # project[Realt_Excel_dict[option]] = int(int(realt_answer)/get_dol_kurs())
                     elif option == "Вид объекта":
                         if "(" in realt_answer:
                             osnov_vid = realt_answer.split(" (")[0].strip().lower()
@@ -164,7 +191,10 @@ def parse(html):
                             project[Realt_Excel_dict['Адрес4']] = realt_answer.split('-')[1]
 
                     elif Realt_Excel_dict[option] in Excel_options_dict:
-                        project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                        try:
+                            project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                        except KeyError:
+                            project[Realt_Excel_dict[option]] = realt_answer
                     else:
                         project[Realt_Excel_dict[option]] = realt_answer
 
@@ -191,7 +221,7 @@ def parse(html):
     # wb.save("D:/TESTYYYY.xls")
 
     # !!!! NOW USE - WRITE TO EXISTING EXCEL
-
+'''
     file = "MyExcel.xlsx"
     wb = openpyxl.load_workbook(filename=file)
     # Seleciono la Hoja
@@ -206,27 +236,34 @@ def parse(html):
                 if field == ws.cell(row=3, column=i).value:
                     ws.cell(row=row_num, column=i).value = project[field]
     wb.save(file)
-
+'''
 
 html = get_html(baseurl)
 parse(html)
 
 
-# soup = BeautifulSoup(html, "html.parser")
-# pages = soup.find('div', {'class': 'uni-paging'})
-# last_page = pages.text.split("... ")[Offices_Realt_Excel].strip()
-# print(last_page)
-#
-# last_url = int(last_page) - Offices_Realt_Excel
-# for i in range(Offices_Realt_Excel, last_url):
-#     url = "{}?page={}".format(baseurl, i)
-#     html = get_html(url)
-#     parse(html)
+soup = BeautifulSoup(html, "html.parser")
+pages = soup.find('div', {'class': 'uni-paging'})
+if pages:
+    last_page = pages.text.split("... ")[1].strip()
+    print(last_page)
+
+    last_url = int(last_page) - 1
+    # for i in range(1, int(last_page)):
+    for i in range(1, 4):
+        url = "{}?page={}".format(baseurl, i)
+        print(url)
+        html = get_html(url)
+        parse(html)
+        the_last_succesful_page = 1
+        print("The last succesful page is {}".format(i))
 
 
-
-
-
+# for i in range(20):
+#     print(i)
+#     waiting_time = random.randint(1, 5)
+#     print("Waitng time is {}".format(waiting_time))
+#     time.sleep(waiting_time)
 
 
 
