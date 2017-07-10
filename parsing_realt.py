@@ -7,6 +7,7 @@ import os
 import json
 from datetime import datetime
 import time
+import random
 
 
 headers = {
@@ -14,12 +15,12 @@ headers = {
       }
 baseurl = 'https://realt.by/sale/shops/' # Базовый URL  - https://realt.by/sale/shops/
 
-with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('D:/PYTHON/2017/Parsing/WorkParsingNEW/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
 excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
 realt_fields_list = list(Realt_Excel_dict.keys())
 
-with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing//Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('D:/PYTHON/2017/Parsing/WorkParsingNEW/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Excel_options_dict = json.load(jf)
 
 def get_html(url):
@@ -39,16 +40,25 @@ def get_dol_kurs(url = 'http://www.nbrb.by/API/ExRates/Rates/145'):
 
 def del_space(string):
     string = str(string)
-    if ' 'in string:
-        my_list = string.split(' ')
-        new_string = '{}{}'.format(my_list[0], my_list[1])
-        string = new_string
+    if ' ' in string:
+        new_string = string.replace(' ', '')
+        string = int(new_string)
         return string
-    # elif u'\xa' in string:
-    #     my_list = string.split(' ')
-    #     new_string = '{}{}'.format(my_list[0], my_list[1])
-    #     string = new_string
-    #     return string
+    else:
+        string = int(string)
+        return string
+
+def get_coords(soup, project):
+    table = soup.find_all('script', {'type': 'text/javascript'})
+    for i in table:
+        string = i.text
+        if 'ymaps' in string:
+            coordinates = string.split('center: [')[1].split(']')[0]
+            X = coordinates.split(', ')[0]
+            Y = coordinates.split(', ')[1]
+            project['XCoord'] = X
+            project['YCoord'] = Y
+
 
 def parse(html):
 
@@ -71,6 +81,7 @@ def parse(html):
         project['№ Объявления'] = id_object_name
         project['Дата актуальности предложения'] = datetime.strftime(datetime.now(), "%d.%m.%Y")
         project['Источник'] = "Realt.by"
+        get_coords(soup1, project)
 
         '''
         # write web page to html file
@@ -96,6 +107,7 @@ def parse(html):
 
 
         for i in table:
+
             # Для объявлений, где есть координаты - для Общественно - деловой зоны их нет
             # if 'Координаты для онлайн карт' in i.text:
             #     coordinates = i.text.split('Координаты для онлайн карт')[Offices_Realt_Excel].strip()
@@ -110,23 +122,39 @@ def parse(html):
                     elif option == "Ориентировочная стоимость эквивалентна":
                         print(realt_answer)
                         # realt_answer = 1 677 руб/кв.м 1 677 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.
+
                         if "," in realt_answer:
+                            print(realt_answer)
                             realt_answer = realt_answer.split(', ')[1].split(' ')[0] # '355—395' or '356'
+                            print(realt_answer)
                             if '—' in realt_answer:
                                 realt_answer = realt_answer.split('—')[0].strip()
-                                del_space(realt_answer)
-                                project[Realt_Excel_dict[option]] = int(int(realt_answer)/get_dol_kurs())
+                                realt_answer = del_space(realt_answer)
+                                project[Realt_Excel_dict[option]] = int(realt_answer/get_dol_kurs())
                             else:
-                                del_space(realt_answer)
-                                project[Realt_Excel_dict[option]] = int(int(realt_answer)/get_dol_kurs())
+                                realt_answer = del_space(realt_answer)
+                                project[Realt_Excel_dict[option]] = int(realt_answer/get_dol_kurs())
                         elif 'договор' in realt_answer:
-                            project[Realt_Excel_dict[option]] = realt_answer
+                            project[Realt_Excel_dict[option]] = 'Цена договорная'
                         else:
-                            realt_answer = realt_answer.split(' руб')[0].strip()
-                            # del_space(str(realt_answer))
-                            print(realt_answer)
-                            print(int(realt_answer))
-                            # project[Realt_Excel_dict[option]] = int(int(realt_answer)/get_dol_kurs())
+                            if 'руб/кв.м' in realt_answer:
+                                realt_answer = realt_answer.split(' руб/кв.м')[0].strip()
+                                if '—' in realt_answer:
+                                    realt_answer = realt_answer.split('—')[0].strip()
+                                    realt_answer = del_space(realt_answer)
+                                    project[Realt_Excel_dict[option]] = int(realt_answer / get_dol_kurs())
+                                else:
+                                    realt_answer = del_space(realt_answer)
+                                    project[Realt_Excel_dict[option]] = int(realt_answer/get_dol_kurs())
+                            else:
+                                realt_answer = realt_answer.split(' руб')[0].strip()
+                                if '—' in realt_answer:
+                                    realt_answer = realt_answer.split('—')[0].strip()
+                                    realt_answer = del_space(realt_answer)
+                                    project[Realt_Excel_dict[option]] = '{} - За весь участок'.format(int(realt_answer / get_dol_kurs()))
+                                else:
+                                    realt_answer = del_space(realt_answer)
+                                    project[Realt_Excel_dict[option]] = '{} - За весь участок'.format(int(realt_answer / get_dol_kurs()))
                     elif option == "Вид объекта":
                         if "(" in realt_answer:
                             osnov_vid = realt_answer.split(" (")[0].strip().lower()
@@ -154,9 +182,11 @@ def parse(html):
                             project[Realt_Excel_dict['Вид объекта3']] = Excel_options_dict[Realt_Excel_dict['Вид объекта3']][realt_answer.lower()]
 
                     elif option == "НДС":
-                        realt_answer = i.text.split(option)[2].strip() # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options.json
-                        project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
-
+                        try:
+                            realt_answer = i.text.split(option)[2].strip() # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options.json
+                            project[Realt_Excel_dict[option]] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                        except: # Может быть что поля НДС нет на странице но строка "НДС встречается в тексте. Поэтому если она встречается то просто пропустить
+                            pass
                     elif option == "Телефоны":
                         if 'Пожалуйста, скажите что Вы нашли это объявление на сайте Realt.by' in i.text:
                             project[Realt_Excel_dict[option]] = realt_answer.split('Пожалуйста, скажите что Вы нашли это объявление на сайте Realt.by')[1].strip()
@@ -200,7 +230,9 @@ def parse(html):
 
         projects.append(project)
         print(project)
-    # print(projects)
+        # print(projects)
+
+
 
     # Write into NEW EXCEL. NOW NOT USED
 
@@ -221,7 +253,7 @@ def parse(html):
     # wb.save("D:/TESTYYYY.xls")
 
     # !!!! NOW USE - WRITE TO EXISTING EXCEL
-'''
+
     file = "MyExcel.xlsx"
     wb = openpyxl.load_workbook(filename=file)
     # Seleciono la Hoja
@@ -236,10 +268,12 @@ def parse(html):
                 if field == ws.cell(row=3, column=i).value:
                     ws.cell(row=row_num, column=i).value = project[field]
     wb.save(file)
-'''
+
+
+
 
 html = get_html(baseurl)
-parse(html)
+# parse(html)
 
 
 soup = BeautifulSoup(html, "html.parser")
@@ -250,13 +284,17 @@ if pages:
 
     last_url = int(last_page) - 1
     # for i in range(1, int(last_page)):
-    for i in range(1, 4):
+    for i in range(3, 5):
         url = "{}?page={}".format(baseurl, i)
         print(url)
         html = get_html(url)
         parse(html)
         the_last_succesful_page = 1
         print("The last succesful page is {}".format(i))
+        waiting_time = random.randint(1, 5)
+        print("Waitng time is {}".format(waiting_time))
+        time.sleep(waiting_time)
+
 
 
 # for i in range(20):
