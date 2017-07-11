@@ -1,7 +1,15 @@
 import requests, json
 from bs4 import BeautifulSoup
 
-baseurl = 'https://realt.by/sale/shops/' # Базовый URL  - https://realt.by/sale/shops/
+baseurl = 'https://realt.by/sale/shops/?page=8' # Базовый URL  - https://realt.by/sale/shops/
+
+with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+    Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
+excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
+realt_fields_list = list(Realt_Excel_dict.keys())
+
+with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+    Excel_options_dict = json.load(jf)
 
 def get_html(url):
     try:
@@ -15,75 +23,40 @@ headers = {
     'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
       }
 
+html = get_html(baseurl)
+soup = BeautifulSoup(html, "html.parser")
 
-my_string = '23 460 руб, 260 руб/кв.м 23 460 руб, 260 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.'
+# look for hrefs in titles
+table = soup.find_all('div', {'class': 'bd-item'}) # Получаем список с объявлениями на странице
 
-a = my_string.split(', ')[1].split(' ')[0]
-
-
-# hanna = requests.get('http://www.nbrb.by/API/ExRates/Rates/145')
-# print(hanna.content)
-
-# n = b'{"Cur_ID":145,"Date":"2017-07-07T00:00:00","Cur_Abbreviation":"USD","Cur_Scale":1,"Cur_Name":"\xd0\x94\xd0\xbe\xd0\xbb\xd0\xbb\xd0\xb0\xd1\x80 \xd0\xa1\xd0\xa8\xd0\x90","Cur_OfficialRate":1.9714}'
-# # print(str(n).split('"Cur_OfficialRate":')[1])
+projects = [] # Список со словарями со страницы, где каждый словарь соответствует одному объявлению на странице. Словарь в таком виде, в котором будет записываться в Ексель
+# проходимся по каждому объявлению
+# for row in table:
 #
-# data = json.loads(n)
-# print(data['Cur_OfficialRate'])
+#     # get hrefs of every page
+#     href_name = row.find('a')
+#     obj_url = href_name.get("href")
+#     html_obj = get_html(obj_url)
+#
+#     soup1 = BeautifulSoup(html_obj, "html.parser")
+#     table = soup1.find_all('tr', {'class': 'table-row'})# Получаем список со всеми необходимыми данными объявления
+#
+#     project = {}
+#     for i in table:  # Проходимся по каждой строке на странице объявления
+#         for option in realt_fields_list:  # Прохдимся по каждому параметру из списка всевозможных параметров на странице. Спиосок создан из словаря соответстий поля на реалте и поля в ексель (Oficces_Realt_Excel).
+#             if option in i.text:  # Если параметр есть в тексте, то начинаем его обрабатывать
+#
+#                 realt_answer = i.text.split(option)[1].strip()  # Получаем только ответ
+#                 Excel_field = Realt_Excel_dict[option]  # Получаем название поля в Excel
+#                 if option == "Ориентировочная стоимость эквивалентна":
+#                     print(realt_answer)
 
-b = '1 677'
-
-
-    # elif u'\xa' in string:
-    #     my_list = string.split(' ')
-    #     new_string = '{}{}'.format(my_list[0], my_list[1])
-    #     string = new_string
-    #     return string
-
-def get_html(url):
-    try:
-        res = requests.get(url, headers = headers)
-    except requests.ConnectionError:
-        return
-
-    if res.status_code < 400:
-        return res.content
-
-def get_coords(i):
-    string = i.text
-    if 'ymaps' in string:
-        coordinates = string.split('center: [')[1].split(']')[0]
-        X = coordinates.split(', ')[0]
-        Y = coordinates.split(', ')[1]
-
-def parse(html):
-
-    soup = BeautifulSoup(html, "html.parser")
-    # print(soup.prettify())
-    # look for hrefs in titles
-    # table = soup.find('ymaps', {'src': '//api-maps.yandex.ru/2.0/?load=package.full&amp;lang=ru-RU" type="text/javascript'})
-    table = soup.find_all('script', {'type': 'text/javascript'})
-    # print(table)
-    for i in table:
-
-        string = i.text
-
-        if 'ymaps' in string:
-            coordinates = string.split('center: [')[1].split(']')[0]
-            print(coordinates)
-            X = coordinates.split(', ')[0]
-            Y = coordinates.split(', ')[1]
-            print(X)
-            print(Y)
-
-
-
-        # if 'ymaps' in i:
-        #     print(i.text)
-    # for i in table:
-    #     print(i.text)
-    #     b = i.find('ymaps')
-    #     print('Here script where YMAPS exists {}'.format(b))
-    # print("Скрипт равно {}".format(table))
-
-html = get_html('https://realt.by/sale/shops/object/492168/')
-parse(html)
+realt_answer = 'Строительство нового торгового центра в Заводском районе. Приглашаем партнеров (торговый центр, магазин, торговое помещение, павильон, киоск, кафе, сфера услуг, салон красоты, парикмахерская, медицина, аптека, здание, банк, торговое место)'
+# osnov_vid = realt_answer.split(")")[-2]
+# print(osnov_vid)
+# # osnov_vid = realt_answer.split(")")[-2].split("(")[1].split(",")[0].lower()
+osnov_vid = realt_answer.split(")")[-2].split("(")[1].lower()
+if ',' in osnov_vid:  # если в скобочках записано более чем один доп вид - т.е. есть запятая. ПОЧТИ ВСЕГДА
+    osnov_vid = realt_answer.split(",")[0]  # если в скобочках записано более чем один доп вид. ПОЧТИ ВСЕГДА
+    # write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
+print(osnov_vid)
