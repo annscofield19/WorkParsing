@@ -51,12 +51,26 @@ projects = [] # Список со словарями со страницы, гд
 #                 if option == "Ориентировочная стоимость эквивалентна":
 #                     print(realt_answer)
 
-realt_answer = 'Строительство нового торгового центра в Заводском районе. Приглашаем партнеров (торговый центр, магазин, торговое помещение, павильон, киоск, кафе, сфера услуг, салон красоты, парикмахерская, медицина, аптека, здание, банк, торговое место)'
-# osnov_vid = realt_answer.split(")")[-2]
+# realt_answer = 'Строительство нового торгового центра в Заводском районе. Приглашаем партнеров (торговый центр, магазин, торговое помещение, павильон, киоск, кафе, сфера услуг, салон красоты, парикмахерская, медицина, аптека, здание, банк, торговое место)'
+# # osnov_vid = realt_answer.split(")")[-2]
+# # print(osnov_vid)
+# # # osnov_vid = realt_answer.split(")")[-2].split("(")[1].split(",")[0].lower()
+# osnov_vid = realt_answer.split(")")[-2].split("(")[1].lower()
+# if ',' in osnov_vid:  # если в скобочках записано более чем один доп вид - т.е. есть запятая. ПОЧТИ ВСЕГДА
+#     osnov_vid = realt_answer.split(",")[0]  # если в скобочках записано более чем один доп вид. ПОЧТИ ВСЕГДА
+#     # write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
 # print(osnov_vid)
-# # osnov_vid = realt_answer.split(")")[-2].split("(")[1].split(",")[0].lower()
-osnov_vid = realt_answer.split(")")[-2].split("(")[1].lower()
-if ',' in osnov_vid:  # если в скобочках записано более чем один доп вид - т.е. есть запятая. ПОЧТИ ВСЕГДА
-    osnov_vid = realt_answer.split(",")[0]  # если в скобочках записано более чем один доп вид. ПОЧТИ ВСЕГДА
-    # write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
-print(osnov_vid)
+
+def del_coma(string):
+    if ',' in string:
+        new_string = string.replace(',', '.')
+        string = float(new_string)
+        return string
+    else:
+        string = int(string)
+        return string
+
+a = '22,5'
+if ',' in a:
+    print("bbbbbbbbbbbb")
+# print(del_coma(a))

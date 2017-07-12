@@ -8,7 +8,7 @@ from datetime import datetime
 import time
 import random
 
-baseurl = 'https://realt.by/sale/offices/' # Базовый URL  - https://realt.by/sale/shops/
+baseurl = 'https://realt.by/sale/restorant-cafe/object/1054855/' # Базовый URL  - https://realt.by/sale/shops/
 
 headers = {
     'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
@@ -47,12 +47,18 @@ def del_space_and_make_integer(string): # Для удаления спец пр�
     string = str(string)
     if ' ' in string:
         new_string = string.replace(' ', '')
-        string = int(new_string)
+        string = float(new_string)
         return string
     else:
-        string = int(string)
+        string = float(string)
         return string
 
+def del_coma(string):
+    if ',' in string:
+        string = string.replace(',', '.')
+        return string
+    else:
+        return string
 
 def get_coords(soup, project): # Для каждого объявления находит координату с Яндекс карты, На вход - объект суп страницы с объявлением и словарь, куда записываются координаты
     table = soup.find_all('script', {'type': 'text/javascript'}) # Находим все объекты на странице с заданными параметрами
@@ -107,21 +113,38 @@ def write_projects_into_new_excel(projects, options, excel_path): # НЕ ИСП�
                 line += 1
     wb.save(excel_path)
 
+
+def write_into_cell(ws, project, row_num):
+    for i in range(1, 70):  # Видимо 70 - количество столбцов в екселе максимальное)))
+        # for field in excel_fields_list:
+        for field in list(project.keys()):  # проходимся по полям которые есть в конкретном project
+            if field == ws.cell(row=3,
+                                column=i).value and field == "Ссылка на html":  # и если поле в project совпадает с полем в ексель и это поле для гиперссылки  то записываем в строку
+                ws.cell(row=row_num, column=i).hyperlink = project[field]
+            elif field == ws.cell(row=3,
+                                  column=i).value:  # и если поле в project совпадает с полем в ексель то записываем в строку
+                ws.cell(row=row_num, column=i).value = project[field]
+
 def add_projects_into_existing_excel(projects, excel_path = "MyExcel.xlsx"):
     wb = openpyxl.load_workbook(filename=excel_path)
     # Выбираем лист
     ws = wb.get_sheet_by_name('Sheet')
     row_num = ws.max_row # находим последнюю строку (чтобы записывать новые данные в следующую)
     for project in projects:
-        row_num += 1
-        for i in range(1, 70): # Видимо 70 - количество столбцов в екселе максимальное)))
-            # for field in excel_fields_list:
-            for field in list(project.keys()): # проходимся по полям которые есть в конкретном project
-                if field == ws.cell(row=3, column=i).value and field == "Ссылка на html":# и если поле в project совпадает с полем в ексель и это поле для гиперссылки  то записываем в строку
-                       ws.cell(row=row_num, column=i).hyperlink = project[field]
-                elif field == ws.cell(row=3, column=i).value: # и если поле в project совпадает с полем в ексель то записываем в строку
-                    ws.cell(row=row_num, column=i).value = project[field]
+        row_num +=1
+        write_into_cell(ws, project, row_num)
     wb.save(excel_path)
+
+def add_project_into_existing_excel(project, excel_path = "MyExcel.xlsx"):
+    wb = openpyxl.load_workbook(filename=excel_path)
+    # Выбираем лист
+    ws = wb.get_sheet_by_name('Sheet')
+    row_num = ws.max_row  # находим последнюю строку (чтобы записывать новые данные в следующую)
+    row_num += 1
+    write_into_cell(ws, project, row_num)
+    wb.save(excel_path)
+
+
 
 def get_area(realt_answer): # Получаем из ответа только площадь - избавляемся от м², где realt_answer - ответ на реалте
     return realt_answer.split('м²')[0].strip()
@@ -130,11 +153,15 @@ def get_hight(realt_answer): # Получаем из ответа только �
     return realt_answer.split('м')[0].strip()
 
 # 5 ФУНКЦИЙ ДЛЯ ПОЛУЧЕНИЯ ЦЕНЫ
+
+
 def get_price(realt_answer, project, Excel_field): # Функция удаляет пробел в цене если он есть и записывает в project цену переведенную в долларах
+    realt_answer = del_coma(realt_answer)
     realt_answer = del_space_and_make_integer(realt_answer)
     project[Excel_field] = int(realt_answer / get_dol_kurs())
 
 def get_price_whole_lot(realt_answer, project, Excel_field): # Функция удаляет пробел в цене если он есть и записывает в project цену переведенную в долларах С ПОМЕТКОЙ ЧТО ЦЕНА УКАЗАНА ЗА ВЕСЬ ЗЕМЕЛЬНЫЙ УЧАСТОК
+    realt_answer = del_coma(realt_answer)
     realt_answer = del_space_and_make_integer(realt_answer)
     project[Excel_field] = '{} !Цена указана за весь участок'.format(int(realt_answer / get_dol_kurs()))
 
@@ -160,14 +187,17 @@ def check_price_whole_lot(realt_answer, project, Excel_field): # Функция 
 
 def get_finish_price(realt_answer, project, Excel_field): # где realt_answer - ответ на реалте, project - словарь, куда записывается итоговая цена,   Excel_field = Realt_Excel_dict[option] - Получаем название поля в Excel, option - название поля на реалте
     # print(realt_answer) - сто пятьсот вариантов
-    if "," in realt_answer:
-        realt_answer = realt_answer.split(', ')[1].split(' ')[0]  # '355—395' or '356' or '1 876' or '1 355—1 395' or 'до 2 157'
+    if ", " in realt_answer:
+        realt_answer = realt_answer.split(', ')[1].split('руб')[0].strip()  # '355—395' or '356' or '1 876' or '1 355—1 395' or 'до 2 157'
         check_price(realt_answer, project, Excel_field)
     elif 'договор' in realt_answer:
         project[Excel_field] = 'Цена договорная'
     else:
         if 'руб/кв.м' in realt_answer:
             realt_answer = realt_answer.split(' руб/кв.м')[0].strip()
+            check_price(realt_answer, project, Excel_field)
+        elif 'руб/м²' in realt_answer:
+            realt_answer = realt_answer.split(' руб/м²')[0].strip()
             check_price(realt_answer, project, Excel_field)
         else: # значит стоимость дана только за весь земельный участок и в строке есть слово "руб"
             realt_answer = realt_answer.split(' руб')[0].strip()
@@ -209,12 +239,12 @@ def get_contacts(realt_answer, project, Excel_field):
     else:
         project[Excel_field] = realt_answer
 
+# 5 функций для определения адреса
 def get_street(realt_answer, project, Excel_field, Excel_field2):
     street_elem = realt_answer.split(".")[0]  # Никольская ул
     realt_elem_name = street_elem.split(' ')[-1]  # ул
     realt_street_name = street_elem.split(realt_elem_name)[0].strip()  # 40 лет Победы
     project[Excel_field2] = Excel_options_dict[Excel_field2][realt_street_name]
-
 
 def get_street_not_in_dict(realt_answer, project, Excel_field, Excel_field2):
     street_elem = realt_answer.split(".")[0]  # Никольская ул
@@ -265,93 +295,107 @@ def get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_fie
             project[Excel_field3] = house
 
 
-def parse(html):
-    soup = BeautifulSoup(html, "html.parser")
 
+def parse_object(obj_url, project={}):
+    html_obj = get_html(obj_url)
+    soup1 = BeautifulSoup(html_obj, "html.parser")
+    table = soup1.find_all('tr', {'class': 'table-row'})  # Получаем список со всеми необходимыми данными объявления
+
+    id_object_name = int(
+        obj_url.split('object/')[1][:-1])  # из url страницы объявления оставляем только уникальный номер
+    project['№ Объявления'] = id_object_name
+    project['Дата актуальности предложения'] = get_today_date()  # Сегодняшняя дата (13.07.2017)
+    project['Ссылка на html'] = '{}/{}.html'.format("D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/HTMLs", id_object_name)
+    project['Источник'] = "Realt.by"
+    get_coords(soup1, project)  # Координаты Х и У записываются в словарь project
+
+    write_webpage_to_html(id_object_name, html_obj,
+                          'D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/HTMLs')  # write web page to html file
+    # get_photos(soup1, project, 'D:/PYTHON/2017/Parsing/WorkParsingNEW/Photos') # write object's photos from web page to local computer
+    options_list = []  # Добавлен для того, чтобы исключать повторную обработку option если данный параметр встречается в тексте где-то еще
+    for i in table:  # Проходимся по каждой строке на странице объявления
+        for option in realt_fields_list:  # Прохдимся по каждому параметру из списка всевозможных параметров на странице. Спиосок создан из словаря соответстий поля на реалте и поля в ексель (Oficces_Realt_Excel).
+            if option in i.text and not option in options_list:  # Если параметр есть в тексте, то начинаем его обрабатывать
+                print(option)
+                if not option in options_list:  # Добавлен для того, чтобы исключать повторную обработку option если данный параметр встречается в тексте где-то еще
+                    options_list.append(option)
+                realt_answer = i.text.split(option)[1].strip()  # Получаем только ответ
+                Excel_field = Realt_Excel_dict[option]  # Получаем название поля в Excel
+
+                if option == "Площадь":
+                    project[Excel_field] = get_area(realt_answer)
+
+                elif option == "Ориентировочная стоимость эквивалентна":
+                    print(realt_answer)
+                    # realt_answer = 1 677 руб/кв.м 1 677 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.
+                    get_finish_price(realt_answer, project, Excel_field)
+
+                elif option == "Вид объекта":
+                    Excel_field2 = Realt_Excel_dict['Вид объекта2']
+                    Excel_field3 = Realt_Excel_dict['Вид объекта3']
+                    get_finish_vid_object(realt_answer, project, Excel_field, Excel_field2, Excel_field3)
+
+                elif option == "НДС":
+                    try:
+                        realt_answer = i.text.split(option)[
+                            2].strip()  # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options.json
+                        project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
+                    except:  # Может быть что поля НДС нет на странице но строка "НДС встречается в тексте. Поэтому если она встречается то просто пропустить
+                        pass
+                elif option == "Телефоны":
+                    get_contacts(realt_answer, project, Excel_field)
+                elif option == "Вода":
+                    Excel_field2 = Realt_Excel_dict['Вода2']
+                    project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
+                    project[Excel_field2] = Excel_options_dict[Excel_field2][realt_answer]
+                elif option == "Высота потолков":
+                    project[Excel_field] = get_hight(realt_answer)
+                elif option == "Адрес":  # Никольская ул., 66-2, 40 лет Победы ул., 66-2,
+                    Excel_field2 = Realt_Excel_dict['Адрес2']  # название улицы
+                    Excel_field3 = Realt_Excel_dict['Адрес3']  # номер дома
+                    Excel_field4 = Realt_Excel_dict['Адрес4']  # корпус
+                    get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_field3, Excel_field4,
+                                     id_object_name)
+                elif option == "Район области":
+                    project[Excel_field] = realt_answer.split('район')[0].strip()
+                elif Realt_Excel_dict[option] in Excel_options_dict:
+                    try:
+                        project[Excel_field] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                    except KeyError:  # есть объявление https://realt.by/sale/shops/object/1106690/ у которого Материал стен не из классификатора
+                        project[Excel_field] = '{} - не из классификатора'.format(realt_answer)
+                else:
+                    project[Realt_Excel_dict[option]] = realt_answer
+    print(project)
+    return project
+
+
+def parse_page(html):
+    soup = BeautifulSoup(html, "html.parser")
     # look for hrefs in titles
     table = soup.find_all('div', {'class': 'bd-item'}) # Получаем список с объявлениями на странице
 
     projects = [] # Список со словарями со страницы, где каждый словарь соответствует одному объявлению на странице. Словарь в таком виде, в котором будет записываться в Ексель
     # проходимся по каждому объявлению
     for row in table:
-
         # get hrefs of every page
         href_name = row.find('a')
         obj_url = href_name.get("href")
-        html_obj = get_html(obj_url)
-
-        soup1 = BeautifulSoup(html_obj, "html.parser")
-        table = soup1.find_all('tr', {'class': 'table-row'})# Получаем список со всеми необходимыми данными объявления
-
-        project = {} # Cловарь соответствует одному объявлению на странице. Словарь в таком виде, в котором будет записываться в Ексель
-
-        id_object_name = int(obj_url.split('object/')[1][:-1]) # из url страницы объявления оставляем только уникальный номер
-        project['№ Объявления'] = id_object_name
-        project['Дата актуальности предложения'] = get_today_date() # Сегодняшняя дата (13.07.2017)
-        project['Ссылка на html'] = '{}/{}.html'.format("D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/HTMLs", id_object_name)
-        project['Источник'] = "Realt.by"
-        get_coords(soup1, project) # Координаты Х и У записываются в словарь project
-
-        write_webpage_to_html(id_object_name, html_obj, 'D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/HTMLs') # write web page to html file
-        # get_photos(soup1, project, 'D:/PYTHON/2017/Parsing/WorkParsingNEW/Photos') # write object's photos from web page to local computer
-
-        for i in table: # Проходимся по каждой строке на странице объявления
-            for option in realt_fields_list: # Прохдимся по каждому параметру из списка всевозможных параметров на странице. Спиосок создан из словаря соответстий поля на реалте и поля в ексель (Oficces_Realt_Excel).
-                if option in i.text: # Если параметр есть в тексте, то начинаем его обрабатывать
-                    print(option)
-                    realt_answer = i.text.split(option)[1].strip() # Получаем только ответ
-                    Excel_field = Realt_Excel_dict[option] # Получаем название поля в Excel
-
-                    if option == "Площадь":
-                        project[Excel_field] = get_area(realt_answer)
-
-                    elif option == "Ориентировочная стоимость эквивалентна":
-                        print(realt_answer)
-                        # realt_answer = 1 677 руб/кв.м 1 677 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.
-                        get_finish_price(realt_answer, project, Excel_field)
-
-                    elif option == "Вид объекта":
-                        Excel_field2 = Realt_Excel_dict['Вид объекта2']
-                        Excel_field3 = Realt_Excel_dict['Вид объекта3']
-                        get_finish_vid_object(realt_answer, project, Excel_field, Excel_field2, Excel_field3)
-
-                    elif option == "НДС":
-                        try:
-                            realt_answer = i.text.split(option)[2].strip() # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options.json
-                            project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
-                        except: # Может быть что поля НДС нет на странице но строка "НДС встречается в тексте. Поэтому если она встречается то просто пропустить
-                            pass
-                    elif option == "Телефоны":
-                        get_contacts(realt_answer, project, Excel_field)
-                    elif option == "Вода":
-                        Excel_field2 = Realt_Excel_dict['Вода2']
-                        project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
-                        project[Excel_field2] = Excel_options_dict[Excel_field2][realt_answer]
-                    elif option == "Высота потолков":
-                        project[Excel_field] = get_hight(realt_answer)
-                    elif option == "Адрес": # Никольская ул., 66-2, 40 лет Победы ул., 66-2,
-                        Excel_field2 = Realt_Excel_dict['Адрес2'] # название улицы
-                        Excel_field3 = Realt_Excel_dict['Адрес3'] # номер дома
-                        Excel_field4 = Realt_Excel_dict['Адрес4'] # корпус
-                        get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_field3, Excel_field4, id_object_name)
-
-                    elif Realt_Excel_dict[option] in Excel_options_dict:
-                        try:
-                            project[Excel_field] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
-                        except KeyError: # есть объявление https://realt.by/sale/shops/object/1106690/ у которого Материал стен не из классификатора
-                            project[Excel_field] = '{} - не из классификатора'.format(realt_answer)
-                    else:
-                        project[Realt_Excel_dict[option]] = realt_answer
-
+        project = {} # Для записи одного объявления в словарь
+        parse_object(obj_url, project)
         projects.append(project)
-        print(project)
-        # print(projects)
-    add_projects_into_existing_excel(projects, excel_path="MyExcel.xlsx")
+    print(projects)
+    return projects
+
+
 
 
 
 html = get_html(baseurl)
-# parse(html)
+# add_projects_into_existing_excel(parse_page(html), excel_path="MyExcel.xlsx")
+
+add_project_into_existing_excel(parse_object(baseurl), excel_path = "MyExcel.xlsx")
+
+
 
 
 soup = BeautifulSoup(html, "html.parser")
@@ -362,14 +406,14 @@ if pages:
 
     last_url = int(last_page) - 1
     # for i in range(1, int(last_page)):
-    for i in range(1, 3):
+    for i in range(4, 5):
         url = "{}?page={}".format(baseurl, i)
         print(url)
         html = get_html(url)
-        parse(html)
+        add_projects_into_existing_excel(parse_page(html), excel_path="MyExcel.xlsx")
         the_last_succesful_page = 1
-        print("The last succesful page is {}".format(i))
-        waiting_time = random.randint(1, 5)
+        print("The last succesful page is {}".format(i+1))
+        waiting_time = random.randint(1, 10)
         print("Waiting time is {}".format(waiting_time))
         time.sleep(waiting_time)
 
