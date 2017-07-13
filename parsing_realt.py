@@ -7,18 +7,23 @@ import json
 from datetime import datetime
 import time
 import random
+from tkinter import *
 
-baseurl = 'https://realt.by/sale/restorant-cafe/object/1054855/' # Базовый URL  - https://realt.by/sale/shops/
+
+
+
+
+baseurl = 'https://realt.by/malls/' # Базовый URL  - https://realt.by/sale/shops/
 
 headers = {
     'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
       }
-with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('Offices_Realt_Excel', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Realt_Excel_dict = json.load(jf) # загружаем из файла данные в словарь Realt_Excel_dict = {'Вид объекта': 'Наименование', 'Вид объекта2': 'Назначение', 'Условия сделки': 'Тип предложения', ...
 excel_fields_list = list(Realt_Excel_dict.values()) # Cоздаем лист с полями Ексель - ['Наименование', 'Назначение', 'Тип предложения', 'Контактные данные'...
 realt_fields_list = list(Realt_Excel_dict.keys())
 
-with open('D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
+with open('Offices_Realt_Fields_Options', 'r', encoding='utf-8') as jf: #открываем файл на чтение
     Excel_options_dict = json.load(jf)
 
 
@@ -43,7 +48,7 @@ def get_today_date(): # Получаем егодняшнюю дату в фор
     return date
 
 
-def del_space_and_make_integer(string): # Для удаления спец пробела в ЦЕНЕ - 1 670. Возвращает целое число без пробела. На вход - строка с ценой '1 670' or '879'
+def del_space(string): # Для удаления спец пробела в ЦЕНЕ - 1 670. Возвращает целое число без пробела. На вход - строка с ценой '1 670' or '879'
     string = str(string)
     if ' ' in string:
         new_string = string.replace(' ', '')
@@ -157,13 +162,13 @@ def get_hight(realt_answer): # Получаем из ответа только �
 
 def get_price(realt_answer, project, Excel_field): # Функция удаляет пробел в цене если он есть и записывает в project цену переведенную в долларах
     realt_answer = del_coma(realt_answer)
-    realt_answer = del_space_and_make_integer(realt_answer)
-    project[Excel_field] = int(realt_answer / get_dol_kurs())
+    realt_answer = del_space(realt_answer)
+    project[Excel_field] = round((realt_answer / get_dol_kurs()), 2)
 
 def get_price_whole_lot(realt_answer, project, Excel_field): # Функция удаляет пробел в цене если он есть и записывает в project цену переведенную в долларах С ПОМЕТКОЙ ЧТО ЦЕНА УКАЗАНА ЗА ВЕСЬ ЗЕМЕЛЬНЫЙ УЧАСТОК
     realt_answer = del_coma(realt_answer)
-    realt_answer = del_space_and_make_integer(realt_answer)
-    project[Excel_field] = '{} !Цена указана за весь участок'.format(int(realt_answer / get_dol_kurs()))
+    realt_answer = del_space(realt_answer)
+    project[Excel_field] = '{} !Цена указана за весь участок'.format(round((realt_answer / get_dol_kurs()), 2))
 
 def check_price(realt_answer, project, Excel_field): # Функция проверяет есть ли в цене строки '—', 'до ' или нет. и записывает корректную (если были строки) в долларах
     if '—' in realt_answer:
@@ -305,66 +310,86 @@ def parse_object(obj_url, project={}):
         obj_url.split('object/')[1][:-1])  # из url страницы объявления оставляем только уникальный номер
     project['№ Объявления'] = id_object_name
     project['Дата актуальности предложения'] = get_today_date()  # Сегодняшняя дата (13.07.2017)
-    project['Ссылка на html'] = '{}/{}.html'.format("D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/HTMLs", id_object_name)
+    project['Ссылка на html'] = '{}/{}.html'.format("HTMLs", id_object_name)
     project['Источник'] = "Realt.by"
     get_coords(soup1, project)  # Координаты Х и У записываются в словарь project
+    if 'malls' in baseurl:
+        Excel_field = Realt_Excel_dict['Вид объекта']
+        Excel_field2 = Realt_Excel_dict['Вид объекта2']
+        Excel_field3 = Realt_Excel_dict['Вид объекта3']
+        osnov_vid = "торговый центр"
+        write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
+
+    if 'newoffices' in baseurl:
+        Excel_field = Realt_Excel_dict['Вид объекта']
+        Excel_field2 = Realt_Excel_dict['Вид объекта2']
+        Excel_field3 = Realt_Excel_dict['Вид объекта3']
+        osnov_vid = "бизнес-центр"
+        write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
 
     write_webpage_to_html(id_object_name, html_obj,
-                          'D:/PYTHON/NCA 03072017/WorkNew/WorkParsing/HTMLs')  # write web page to html file
+                          'HTMLs')  # write web page to html file
     # get_photos(soup1, project, 'D:/PYTHON/2017/Parsing/WorkParsingNEW/Photos') # write object's photos from web page to local computer
     options_list = []  # Добавлен для того, чтобы исключать повторную обработку option если данный параметр встречается в тексте где-то еще
     for i in table:  # Проходимся по каждой строке на странице объявления
-        for option in realt_fields_list:  # Прохдимся по каждому параметру из списка всевозможных параметров на странице. Спиосок создан из словаря соответстий поля на реалте и поля в ексель (Oficces_Realt_Excel).
-            if option in i.text and not option in options_list:  # Если параметр есть в тексте, то начинаем его обрабатывать
-                print(option)
-                if not option in options_list:  # Добавлен для того, чтобы исключать повторную обработку option если данный параметр встречается в тексте где-то еще
-                    options_list.append(option)
-                realt_answer = i.text.split(option)[1].strip()  # Получаем только ответ
-                Excel_field = Realt_Excel_dict[option]  # Получаем название поля в Excel
+        # for option in realt_fields_list:  # Прохдимся по каждому параметру из списка всевозможных параметров на странице. Спиосок создан из словаря соответстий поля на реалте и поля в ексель (Oficces_Realt_Excel).
 
-                if option == "Площадь":
-                    project[Excel_field] = get_area(realt_answer)
+        option = i.find('td', {'class': "table-row-left"}).text
+        if option in realt_fields_list:
+            realt_answer = i.find('td', {'class': "table-row-right"}).text
+            print(option)
+            print(realt_answer)
+            Excel_field = Realt_Excel_dict[option]  # Получаем название поля в Excel
 
-                elif option == "Ориентировочная стоимость эквивалентна":
-                    print(realt_answer)
-                    # realt_answer = 1 677 руб/кв.м 1 677 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.
-                    get_finish_price(realt_answer, project, Excel_field)
+            if option == "Площадь":
 
-                elif option == "Вид объекта":
-                    Excel_field2 = Realt_Excel_dict['Вид объекта2']
-                    Excel_field3 = Realt_Excel_dict['Вид объекта3']
-                    get_finish_vid_object(realt_answer, project, Excel_field, Excel_field2, Excel_field3)
+                project[Excel_field] = get_area(realt_answer)
 
-                elif option == "НДС":
-                    try:
-                        realt_answer = i.text.split(option)[
-                            2].strip()  # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options.json
-                        project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
-                    except:  # Может быть что поля НДС нет на странице но строка "НДС встречается в тексте. Поэтому если она встречается то просто пропустить
-                        pass
-                elif option == "Телефоны":
-                    get_contacts(realt_answer, project, Excel_field)
-                elif option == "Вода":
-                    Excel_field2 = Realt_Excel_dict['Вода2']
+            elif option == "Ориентировочная стоимость эквивалентна":
+                print(realt_answer)
+                # realt_answer = 1 677 руб/кв.м 1 677 руб/кв.м  Цена сделки определяется по соглашению сторон. Расчеты осуществляются в белорусских рублях в соответствии с законодательством Республики Беларусь.
+                get_finish_price(realt_answer, project, Excel_field)
+
+            elif option == "Вид объекта":
+                Excel_field2 = Realt_Excel_dict['Вид объекта2']
+                Excel_field3 = Realt_Excel_dict['Вид объекта3']
+                get_finish_vid_object(realt_answer, project, Excel_field, Excel_field2, Excel_field3)
+
+            elif option == "НДС":
+                try:
+                    realt_answer = i.text.split(option)[
+                        2].strip()  # потому что realt_answer гзначально такой список ['', ' ', ' не включен)'] Поэтому берем третий элемент (Также поменяла в json словаре Offices_Realt_Fields_Options.json
                     project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
-                    project[Excel_field2] = Excel_options_dict[Excel_field2][realt_answer]
-                elif option == "Высота потолков":
-                    project[Excel_field] = get_hight(realt_answer)
-                elif option == "Адрес":  # Никольская ул., 66-2, 40 лет Победы ул., 66-2,
-                    Excel_field2 = Realt_Excel_dict['Адрес2']  # название улицы
-                    Excel_field3 = Realt_Excel_dict['Адрес3']  # номер дома
-                    Excel_field4 = Realt_Excel_dict['Адрес4']  # корпус
-                    get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_field3, Excel_field4,
-                                     id_object_name)
-                elif option == "Район области":
-                    project[Excel_field] = realt_answer.split('район')[0].strip()
-                elif Realt_Excel_dict[option] in Excel_options_dict:
-                    try:
-                        project[Excel_field] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
-                    except KeyError:  # есть объявление https://realt.by/sale/shops/object/1106690/ у которого Материал стен не из классификатора
-                        project[Excel_field] = '{} - не из классификатора'.format(realt_answer)
-                else:
-                    project[Realt_Excel_dict[option]] = realt_answer
+                except:  # Может быть что поля НДС нет на странице но строка "НДС встречается в тексте. Поэтому если она встречается то просто пропустить
+                    pass
+            elif option == "Телефоны":
+                get_contacts(realt_answer, project, Excel_field)
+            elif option == "Вода":
+                Excel_field2 = Realt_Excel_dict['Вода2']
+                print(Excel_field)
+                print(Excel_field2)
+                a = Excel_options_dict[Excel_field][realt_answer]
+                b =  Excel_options_dict[Excel_field2][realt_answer]
+                print(a, b)
+                project[Excel_field] = Excel_options_dict[Excel_field][realt_answer]
+                project[Excel_field2] = Excel_options_dict[Excel_field2][realt_answer]
+            elif option == "Высота потолков":
+                project[Excel_field] = get_hight(realt_answer)
+            elif option == "Адрес":  # Никольская ул., 66-2, 40 лет Победы ул., 66-2,
+                Excel_field2 = Realt_Excel_dict['Адрес2']  # название улицы
+                Excel_field3 = Realt_Excel_dict['Адрес3']  # номер дома
+                Excel_field4 = Realt_Excel_dict['Адрес4']  # корпус
+                get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_field3, Excel_field4,
+                                 id_object_name)
+            elif option == "Район области":
+                project[Excel_field] = realt_answer.split('район')[0].strip()
+            elif Realt_Excel_dict[option] in Excel_options_dict:
+                try:
+                    project[Excel_field] = Excel_options_dict[Realt_Excel_dict[option]][realt_answer]
+                except KeyError:  # есть объявление https://realt.by/sale/shops/object/1106690/ у которого Материал стен не из классификатора
+                    project[Excel_field] = '{} - не из классификатора'.format(realt_answer)
+            else:
+                project[Realt_Excel_dict[option]] = realt_answer
     print(project)
     return project
 
@@ -391,9 +416,9 @@ def parse_page(html):
 
 
 html = get_html(baseurl)
-# add_projects_into_existing_excel(parse_page(html), excel_path="MyExcel.xlsx")
+add_projects_into_existing_excel(parse_page(html), excel_path="MyExcel.xlsx")
 
-add_project_into_existing_excel(parse_object(baseurl), excel_path = "MyExcel.xlsx")
+# add_project_into_existing_excel(parse_object(baseurl), excel_path = "MyExcel.xlsx")
 
 
 
@@ -406,7 +431,7 @@ if pages:
 
     last_url = int(last_page) - 1
     # for i in range(1, int(last_page)):
-    for i in range(4, 5):
+    for i in range(1, 3):
         url = "{}?page={}".format(baseurl, i)
         print(url)
         html = get_html(url)
