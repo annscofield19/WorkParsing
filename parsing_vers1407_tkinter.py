@@ -18,9 +18,9 @@ Warehouses = 'https://realt.by/sale/warehouses/'
 Business = 'https://realt.by/sale/business/'
 
 first_page = 1
-last_page = 3
+last_page = 2
 
-baseurl = Business_centers
+baseurl = Offices
 
 
 
@@ -440,7 +440,7 @@ add_projects_into_existing_excel(parse_page(html), excel_path="Форма_04_П�
 def parsing(event):
     close_window(root)
     html = get_html(baseurl)
-    add_projects_into_existing_excel(parse_page(html), excel_path="Форма_04_Предложения_продажи_и_аренды.xlsx")
+    # add_projects_into_existing_excel(parse_page(html), excel_path="Форма_04_Предложения_продажи_и_аренды.xlsx")
 
 
     soup = BeautifulSoup(html, "html.parser")
@@ -451,7 +451,7 @@ def parsing(event):
 
         last_url = int(last_page) - 1
         # for i in range(1, int(last_page)):
-        for i in range(first_page, last_page):
+        for i in range(1, 2):
             url = "{}?page={}".format(baseurl, i)
             print(url)
             html = get_html(url)
