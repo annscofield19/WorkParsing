@@ -9,7 +9,7 @@ import time
 import random
 from tkinter import *
 
-baseurl = 'https://realt.by/rent/restorant-cafe/' # Базовый URL  - https://realt.by/sale/shops/
+baseurl = 'https://realt.by/rent/business/' # Базовый URL  - https://realt.by/sale/shops/
 headers = {
     'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
       }
@@ -58,8 +58,13 @@ def del_space(string): # Для удаления спец пробела в ЦЕ
         string = float(new_string)
         return string
     else:
-        string = float(string)
-        return string
+        if ' млн' in string: # "1.37 млн" - на вход - еще нужно проверить цену на наличие слова "млн" - такие есть в ресторанах - когда стоимость дана за весь уасток.
+            string = string.split(' млн')[0]  # "1.37 млн" - "1.37"
+            string = float(string)*1000000 # переводим строку в число и умножаем на 1 млн, т.к. стоимость была дана в млн.
+            return string
+        else:
+            string = float(string)
+            return string
 
 def del_coma(string): # Для удаления запятой  в ЦЕНЕ - 5,76 и замене ее на точку. Возвращает строку
     if ',' in string:
@@ -233,6 +238,9 @@ def get_finish_vid_object(realt_answer, project, Excel_field, Excel_field2, Exce
             osnov_vid = realt_answer.split(")")[-2].split("(")[1].lower() # Нужно взять только то, что в последних скобках - Делим по последней скобке и берем предпоследний эл-т - [-2] - второй элемент с конца, т.к. первый элемент с конца - пустая строка
             if ',' in osnov_vid: # если в скобочках записано более чем один доп вид - т.е. есть запятая. ПОЧТИ ВСЕГДА
                 osnov_vid = osnov_vid.split(",")[0]  # если в скобочках записано более чем один доп вид. ПОЧТИ ВСЕГДА
+                if osnov_vid == 'помещение': # Иногда первым в скобчках записано помещение и оно склад, т.е. основной вид идет после помещения. поэтому ужно взять второй элемент в скобках
+                    osnov_vid = realt_answer.split(")")[-2].split("(")[1].lower() # получается "помещение, склад, ...
+                    osnov_vid = osnov_vid.split(', ')[1]
                 write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
             else: # если в скобочках записан один вид
                 write_into_project_all_vidy(osnov_vid, project, Excel_field, Excel_field2, Excel_field3)
@@ -391,19 +399,25 @@ def parse_object(obj_url, project={}): # Парсим одно объявлен�
                 project[Excel_field] = get_hight(realt_answer)
 
             elif option == "Адрес":  # Никольская ул., 66-2, 40 лет Победы ул., 66-2,
-                Excel_field2 = Realt_Excel_dict['Адрес2']  # название улицы
-                Excel_field3 = Realt_Excel_dict['Адрес3']  # номер дома
-                Excel_field4 = Realt_Excel_dict['Адрес4']  # корпус
-                get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_field3, Excel_field4,
+                try:
+                    Excel_field2 = Realt_Excel_dict['Адрес2']  # название улицы
+                    Excel_field3 = Realt_Excel_dict['Адрес3']  # номер дома
+                    Excel_field4 = Realt_Excel_dict['Адрес4']  # корпус
+                    get_full_address(realt_answer, project, Excel_field, Excel_field2, Excel_field3, Excel_field4,
                                  id_object_name)
+                except:
+                    pass
+
+
             elif option == "Район области":
                 project[Excel_field] = realt_answer.split('район')[0].strip()
 
-            elif option == "Этажность":
-                realt_answer = realt_answer.split(' этажей')[0]
-                if '-' in realt_answer:
-                    realt_answer = realt_answer.split('-')[1].strip()
-                project[Excel_field] = realt_answer
+
+            # elif option == "Этажность":
+            #     realt_answer = realt_answer.split(' этажей')[0]
+            #     if '-' in realt_answer:
+            #         realt_answer = realt_answer.split('-')[1].strip()
+            #     project[Excel_field] = realt_answer
 
             elif Realt_Excel_dict[option] in Excel_options_dict:  # доп действий производить не нужно, ответ записан в той форме, в которой он в словаре Offices_Realt_Fields_Options
                 try:
@@ -437,15 +451,18 @@ def parse_page(html): # Парсим одну страницу
 # baseurl = 'https://realt.by/sale/offices/object/1059798/'
 # parse_object(baseurl)
 
+
 # Проба для записи только одного объявления в ексель
 # baseurl = 'https://realt.by/sale/offices/object/1059798/'
-# add_project_into_existing_excel(parse_object(baseurl), excel_path = excel_path)
+# add_project_into_existing_excel(parse_object(baseurl), excel_path=excel_path)
+
+
 
 # ПОШЛА РАБОТА
 # Получаем хтмл контент базового урла
 html = get_html(baseurl)
 # Записываем главную страницу (первую базового урла) в ексель
-add_projects_into_existing_excel(parse_page(html), excel_path=excel_path)
+# add_projects_into_existing_excel(parse_page(html), excel_path=excel_path)
 
 # Дальше работа со следующими страницами для базового урла. Находим количество страниц и двигаемся по ним
 soup = BeautifulSoup(html, "html.parser")
@@ -455,17 +472,17 @@ if pages:
     print("The number of pages: {}".format(last_page))
     last_url = int(last_page) - 1 # для второй страницы last_url = 1, поэтому для последней last_page - 1
     # ВЫБИРАЕМ С КАКОЙ ПО КАКУЮ СТРАНИЦУ ПАРСИТЬ, range(1, 3) - [1, 2] - 1 - вторая страница, 3 - третья, т.к. 3 - не входит
-    for i in range(1, 3):
+    for i in range(16, 17):
         url = "{}?page={}".format(baseurl, i)
         print(url)
         html = get_html(url)
         add_projects_into_existing_excel(parse_page(html), excel_path=excel_path)
+
         the_last_succesful_page = 1
         print("The last succesful page is {}".format(i+1))
         waiting_time = random.randint(1, 10)
         print("Waiting time is {}".format(waiting_time))
         time.sleep(waiting_time)
-
 
 
 
