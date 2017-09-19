@@ -485,7 +485,7 @@ if pages:
         time.sleep(waiting_time)
 
 
-
+#last changes were made 26.07
 
 
 
